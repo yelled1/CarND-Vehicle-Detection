@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from skimage.feature import hog
 from lesson_functions import *
 from sklearn.model_selection import train_test_split
+from scipy.ndimage.measurements import label
 
 color_space = 'RGB' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 9  # HOG orientations
@@ -166,7 +167,8 @@ if 1:
     image = mpimg.imread('./test_images/bbox-example-image.jpg')
     draw_image = np.copy(image)
     image = image.astype(np.float32)/255 # conversion to 0~1 as trained on png
-
+    heat  = np.zeros_like(image[:,:,0]).astype(np.float)
+    
     windows = slide_window(image, x_start_stop=[None, None], y_start_stop=y_start_stop,
                            xy_window=(96, 96), xy_overlap=(0.5, 0.5))
 
@@ -177,9 +179,22 @@ if 1:
                                  hog_channel=hog_channel, spatial_feat=spatial_feat,
                                  hist_feat=hist_feat, hog_feat=hog_feat)
 
-    window_img = draw_boxes(draw_image, hot_windows, color=(0, 0, 255), thick=6)
+    window_img = draw_boxes(draw_image, hot_windows, color=(0,0,255), thick=6)
+    heat = add_heat(heat, hot_windows)
+    heatmap = np.clip(heat, 0, 255)
 
-    plt.imshow(window_img)
+    labels = label(heatmap)
+    draw_img = draw_labeled_bboxes(np.copy(image), labels)
+
+    fig = plt.figure()
+    plt.subplot(121)
+    plt.imshow(draw_img)
+    plt.title('Car Positions')
+    plt.subplot(122)
+    plt.imshow(heatmap, cmap='hot')
+    plt.title('Heat Map')
+    fig.tight_layout()
+    #plt.imshow(window_img)
     plt.show()
 
 #createSVC(lim=0)
