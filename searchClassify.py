@@ -107,9 +107,11 @@ def search_windows(img, windows, clf, scaler, color_space='RGB',
     return on_windows
 
 
-def createSVC(lim=0):
-    images = glob.glob('./non-vehicles/GTI/*.png')
-    for subDir in glob.glob('./vehicles/GTI_*'):
+def createSVC(lim=0, pklIt=False):
+    images = []
+    for subDir in glob.glob('./non-vehicles/*'):
+        images = images + glob.glob(subDir+'/*.png')
+    for subDir in glob.glob('./vehicles/*'):
         images = images + glob.glob(subDir+'/*.png')
     cars = []
     notcars = []
@@ -119,6 +121,8 @@ def createSVC(lim=0):
     if lim > 1: 
         cars = cars[:lim]
         notcars = notcars[:lim]
+    print('# of cars example = ', len(cars))
+    print('# of not cars are = ', len(notcars))
     car_features = extractFeatures(cars, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
                         orient=orient, pix_per_cell=pix_per_cell,
@@ -155,11 +159,12 @@ def createSVC(lim=0):
     print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
     # Check the prediction time for a single sample
     t=time.time()
-    with open('./svcModel.pkl', 'wb') as fp: pickle.dump(svc,fp)
-    with open('./X_scaler.pkl', 'wb') as fw: pickle.dump(X_scaler, fw)
+    if pklIt:
+        with open('./svcModel.pkl', 'wb') as fp: pickle.dump(svc,fp)
+        with open('./X_scaler.pkl', 'wb') as fw: pickle.dump(X_scaler, fw)
 
 
-if 1:
+if 0:
     y_start_stop = [485, None] # Min and max in y to search in slide_window()
 
     with open('./svcModel.pkl', 'rb') as fr: svc = pickle.load(fr)
@@ -197,4 +202,4 @@ if 1:
     #plt.imshow(window_img)
     plt.show()
 
-#createSVC(lim=0)
+createSVC(lim=0)
