@@ -10,7 +10,7 @@ from lesson_functions import *
 from sklearn.model_selection import train_test_split
 from scipy.ndimage.measurements import label
 
-color_space = 'RGB' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
+color_space = 'YCrCb' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 9  # HOG orientations
 pix_per_cell = 8 # HOG pixels per cell
 cell_per_block = 2 # HOG cells per block
@@ -24,9 +24,9 @@ hog_feat = True # HOG features on or off
 def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
                         hist_bins=32, orient=9,
                         pix_per_cell=8, cell_per_block=2, hog_channel=0,
-                        spatial_feat=True, hist_feat=True, hog_feat=True):
+                        spatial_feat=True, hist_feat=True, hog_feat=True, hogVis=False, dbg=False):
     #1) Define an empty list to receive features
-    img_features = []
+    img_features, imgShapes = [], {}
     #2) Apply color conversion if other than 'RGB'
     if color_space != 'RGB':
         if   color_space == 'HSV':  feature_image = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -40,11 +40,13 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
         spatial_features = bin_spatial(feature_image, size=spatial_size)
         #4) Append features to list
         img_features.append(spatial_features)
+        if dbg: imgShapes["spatial"]=spatial_features.shape[0]
     #5) Compute histogram features if flag is set
     if hist_feat == True:
         hist_features = color_hist(feature_image, nbins=hist_bins)
         #6) Append features to list
         img_features.append(hist_features)
+        if dbg: imgShapes["histgrm"]=hist_features.shape[0]
     #7) Compute HOG features if flag is set
     if hog_feat == True:
         if hog_channel == 'ALL':
@@ -53,12 +55,18 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
                 hog_features.extend(get_hog_features(feature_image[:,:,channel],
                                     orient, pix_per_cell, cell_per_block,
                                     vis=False, feature_vec=True))
+                if dbg: imgShapes['HOG'+str(channel)] = len(hog_features)
         else:
-            hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
-                        pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+            if hogVis: return get_hog_features(feature_image[:,:,hog_channel], orient,
+                                               pix_per_cell, cell_per_block, vis=True, feature_vec=True)
+            else:
+                hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
+                                                pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+                if dbg: imgShapes['HOG0'] = len(hog_features)
         #8) Append features to list
         img_features.append(hog_features)
     #9) Return concatenated array of features
+    if dbg: print(imgShapes)
     return np.concatenate(img_features)
 
 def extractFeatures(imgFileNms, color_space='RGB', spatial_size=(32, 32),
@@ -106,30 +114,30 @@ def search_windows(img, windows, clf, scaler, color_space='RGB',
     #8) Return windows for positive detections
     return on_windows
 
-
-def createSVC(lim=0, pklIt=False):
+def getImgFiles(lim=0):
     images = []
     for subDir in glob.glob('./non-vehicles/*'):
         images = images + glob.glob(subDir+'/*.png')
     for subDir in glob.glob('./vehicles/*'):
         images = images + glob.glob(subDir+'/*.png')
-    cars = []
-    notcars = []
+    carS, notcars = [], []
     for image in images:
         if 'non-vehicles' in image: notcars.append(image)
-        else:                          cars.append(image)
-    if lim > 1: 
-        cars = cars[:lim]
-        notcars = notcars[:lim]
-    print('# of cars example = ', len(cars))
+        else:                          carS.append(image)
+    if lim > 1: carS, notcars = carS[:lim], notcars[:lim]
+    print('# of carS example = ', len(carS))
     print('# of not cars are = ', len(notcars))
+    return carS, notcars
+
+def createSVC(lim=0, pklIt=False):
+    cars, notCars = getImgFiles(lim=lim)
     car_features = extractFeatures(cars, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
                         orient=orient, pix_per_cell=pix_per_cell,
                         cell_per_block=cell_per_block,
                         hog_channel=hog_channel, spatial_feat=spatial_feat,
                         hist_feat=hist_feat, hog_feat=hog_feat)
-    notcar_features = extractFeatures(notcars, color_space=color_space,
+    notcar_features = extractFeatures(notCars, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
                         orient=orient, pix_per_cell=pix_per_cell,
                         cell_per_block=cell_per_block,
@@ -202,4 +210,4 @@ if 0:
     #plt.imshow(window_img)
     plt.show()
 
-createSVC(lim=0)
+#createSVC(lim=0, pklIt=True)
