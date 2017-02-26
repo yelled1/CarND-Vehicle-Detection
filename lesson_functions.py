@@ -46,7 +46,7 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
 # window size (x and y dimensions),  
 # and overlap fraction (for both x and y)
 def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None], 
-                    xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
+                    xy_window=(64, 64), xy_overlap=(0.5, 0.5), dbg=False):
     # If x and/or y start/stop positions not defined, set to image size
     if x_start_stop[0] == None: x_start_stop[0] = 0
     if x_start_stop[1] == None: x_start_stop[1] = img.shape[1]

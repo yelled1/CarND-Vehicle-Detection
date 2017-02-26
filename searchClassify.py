@@ -10,6 +10,7 @@ from lesson_functions import *
 from sklearn.model_selection import train_test_split
 from scipy.ndimage.measurements import label
 from moviepy.editor import VideoFileClip
+from config import *
 
 def single_img_features(img, color_space='YCrCb', spatial_size=(32, 32),
                         hist_bins=32, orient=9,
@@ -79,7 +80,7 @@ def search_windows(img, windows, clf, scaler, color_space='YCrCb',
                     hist_range=(0, 256), orient=9,
                     pix_per_cell=8, cell_per_block=2,
                     hog_channel=0, spatial_feat=True,
-                    hist_feat=True, hog_feat=True):
+                    hist_feat=True, hog_feat=True, dbg=False):
 
     #1) Create an empty list to receive positive detection windows
     on_windows = []
@@ -99,8 +100,8 @@ def search_windows(img, windows, clf, scaler, color_space='YCrCb',
         #6) Predict using your classifier
         prediction = clf.predict(test_features)
         #7) If positive (prediction == 1) then save the window
-        if prediction == 1:
-            on_windows.append(window)
+        if prediction == 1: on_windows.append(window)
+        if dbg and prediction==1: print('on_windows.append', len(on_windows))
     #8) Return windows for positive detections
     return on_windows
 
@@ -163,20 +164,21 @@ def createSVC(lim=0, pklIt=False):
 
 
 def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
-    y_start_stop = [475, None] # Min and max in y to search in slide_window()
     if type(iFnm) == str: image  = mpimg.imread(iFnm)
-    else: image  = iFnm
+    elif type(iFnm) == np.ndarray:      image = iFnm
+    else: raise TypeError('Neither File Name nor Image typeError')
+
     imgCpy = np.copy(image)
     image  = image.astype(np.float32)/255 # conversion to 0~1 as trained on png
     heat   = np.zeros_like(image[:,:,0]).astype(np.float)
-    searchWindows = slide_window(image, x_start_stop=[None, None], y_start_stop=y_start_stop,
-                           xy_window=(96, 96), xy_overlap=(0.5, 0.5))
-    hot_windows = search_windows(image, searchWindows, svc, X_scaler, color_space=color_space,
+    searchWindows = slide_window(image, x_start_stop=[None, None], y_start_stop = [475, None],
+                                 xy_window=(96, 96), xy_overlap=(0.5, 0.5), dbg=dbg)
+    hot_windows   = search_windows(image, searchWindows, svc, X_scaler, color_space=color_space,
                                  spatial_size=spatial_size, hist_bins=hist_bins,
                                  orient=orient, pix_per_cell=pix_per_cell,
                                  cell_per_block=cell_per_block,
                                  hog_channel=hog_channel, spatial_feat=spatial_feat,
-                                 hist_feat=hist_feat, hog_feat=hog_feat)
+                                   hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
 
     oBoxdImg = draw_boxes(imgCpy, hot_windows, color=(0,0,255), thick=6)
     heatAdd  = add_heat(heat, hot_windows)
@@ -205,25 +207,13 @@ def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4'):
     outClip = inVclip.fl_image(processImg)
     outClip.write_videofile(outClipFnm, audio=False)
 
-color_space = 'YCrCb' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
-orient = 9  # HOG orientations
-pix_per_cell = 8 # HOG pixels per cell
-cell_per_block = 2 # HOG cells per block
-hog_channel = "ALL" # Can be 0, 1, 2, or "ALL"
-spatial_size = (16, 16) # Spatial binning dimensions
-hist_bins = 16    # Number of histogram bins
-spatial_feat = True # Spatial features on or off
-hist_feat = True # Histogram features on or off
-hog_feat = True # HOG features on or off
 
-with open('./svcModel.pkl', 'rb') as fr: svc = pickle.load(fr)
-with open('./X_scaler.pkl', 'rb') as rf: X_scaler = pickle.load(rf)
-
-if 0: createSVC(lim=0, pklIt=True)
-if 1:
+if __name__ == '__main__':
+    if 0: createSVC(lim=0, pklIt=True)
     bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
-    x = processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
-    #x = processImg(bboxImg, saveFlev=1, dbg=True)
-    vFrame = VideoFileClip('./test_video.mp4').get_frame(1.0); x = processImg(vFrame,  saveFlev=1, dbg=True)
-    inF = './test_video.mp4'; outF=outClipFnm='./outPut1.mp4'; proccessVideo(inF, outF)
+    #x = processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
+    x = processImg(bboxImg, saveFlev=1, dbg=True)
+    vFrame = VideoFileClip('./test_video.mp4').get_frame(1.0); x = processImg(vFrame,  saveFlev=3, dbg=True)
+    #inF = './test_video.mp4'; outF=outClipFnm='./outPut1.mp4'; proccessVideo(inF, outF)
     #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF)
+    #bboxImg.shape;    vFrame.shape; Out[17]: (720, 1280, 3)
