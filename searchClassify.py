@@ -74,11 +74,11 @@ def extractFeatures(imgFileNms, color_space='YCrCb', spatial_size=(32, 32),
     return features
 
 def search_windows(img, windows, clf, scaler, color_space='YCrCb',
-                    spatial_size=(32, 32), hist_bins=32,
-                    hist_range=(0, 256), orient=9,
-                    pix_per_cell=8, cell_per_block=2,
-                    hog_channel=0, spatial_feat=True,
-                    hist_feat=True, hog_feat=True, dbg=False):
+                   spatial_size=(32, 32), hist_bins=32,
+                   hist_range=(0, 256), orient=9,
+                   pix_per_cell=8, cell_per_block=2,
+                   hog_channel=0, spatial_feat=True,
+                   hist_feat=True, hog_feat=True, dbg=False):
 
     #1) Create an empty list to receive positive detection windows
     on_windows = []
@@ -88,11 +88,11 @@ def search_windows(img, windows, clf, scaler, color_space='YCrCb',
         test_img = cv2.resize(img[window[0][1]:window[1][1], window[0][0]:window[1][0]], (64, 64))
         #4) Extract features for that window using single_img_features()
         features = single_img_features(test_img, color_space=color_space,
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_feat=spatial_feat,
-                            hist_feat=hist_feat, hog_feat=hog_feat)
+                                       spatial_size=spatial_size, hist_bins=hist_bins,
+                                       orient=orient, pix_per_cell=pix_per_cell,
+                                       cell_per_block=cell_per_block,
+                                       hog_channel=hog_channel, spatial_feat=spatial_feat,
+                                       hist_feat=hist_feat, hog_feat=hog_feat)
         #5) Scale extracted features to be fed to classifier
         test_features = scaler.transform(np.array(features).reshape(1, -1))
         #6) Predict using your classifier
@@ -121,17 +121,17 @@ def getImgFiles(lim=0):
 def createSVC(lim=0, pklIt=False):
     cars, notCars = getImgFiles(lim=lim)
     car_features = extractFeatures(cars, color_space=color_space,
-                        spatial_size=spatial_size, hist_bins=hist_bins,
-                        orient=orient, pix_per_cell=pix_per_cell,
-                        cell_per_block=cell_per_block,
-                        hog_channel=hog_channel, spatial_feat=spatial_feat,
-                        hist_feat=hist_feat, hog_feat=hog_feat)
+                                   spatial_size=spatial_size, hist_bins=hist_bins,
+                                   orient=orient, pix_per_cell=pix_per_cell,
+                                   cell_per_block=cell_per_block,
+                                   hog_channel=hog_channel, spatial_feat=spatial_feat,
+                                   hist_feat=hist_feat, hog_feat=hog_feat)
     notcar_features = extractFeatures(notCars, color_space=color_space,
-                        spatial_size=spatial_size, hist_bins=hist_bins,
-                        orient=orient, pix_per_cell=pix_per_cell,
-                        cell_per_block=cell_per_block,
-                        hog_channel=hog_channel, spatial_feat=spatial_feat,
-                        hist_feat=hist_feat, hog_feat=hog_feat)
+                                      spatial_size=spatial_size, hist_bins=hist_bins,
+                                      orient=orient, pix_per_cell=pix_per_cell,
+                                      cell_per_block=cell_per_block,
+                                      hog_channel=hog_channel, spatial_feat=spatial_feat,
+                                      hist_feat=hist_feat, hog_feat=hog_feat)
 
     X = np.vstack((car_features, notcar_features)).astype(np.float64)
     X_scaler = StandardScaler().fit(X)     # Fit a per-column scaler
@@ -160,7 +160,7 @@ def createSVC(lim=0, pklIt=False):
         with open('./svcModel.pkl', 'wb') as fp: pickle.dump(svc,fp)
         with open('./X_scaler.pkl', 'wb') as fw: pickle.dump(X_scaler, fw)
 
-def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
+def processImg(iFnm, oFnm=None, saveFlev=1, imgWrt=False, dbg=False):
     if type(iFnm) == str: image  = mpimg.imread(iFnm)
     elif type(iFnm) == np.ndarray:      image = iFnm
     else: raise TypeError('Neither File Name nor Image typeError')
@@ -169,14 +169,26 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
     image  = image.astype(np.float32)/255 # conversion to 0~1 as trained on png
     heat   = np.zeros_like(image[:,:,0]).astype(np.float)
 
-    hot_windows = []
-    searchWinList= []
-    for search_window in GVsearchWindows: # gVal: search windows (np.arrays(xmin,xMax, y
+    hot_windows   = []
+    searchWinList = []
+    searchWinExtL = []
+    for search_win in GVsearchWindows: # gVal: search windows (np.arrays(xmin,xMax, y
         # Id win coord using Modified slide_window: relative to Image
-        x_start_stop = ((search_window[0][0] * image.shape[1]).round()).astype(int)
-        y_start_stop = ((search_window[0][1] * image.shape[0]).round()).astype(int)
-        xy_window    =  (search_window[1], search_window[1])
-        searchWinList += slide_window(image, x_start_stop, y_start_stop, xy_window=xy_window)
+        x_start_stop = ((search_win[0][0] * image.shape[1]).round()).astype(int)
+        y_start_stop = ((search_win[0][1] * image.shape[0]).round()).astype(int)
+        xy_window    =  (search_win[1], search_win[1])
+        searchWbin = slide_window(image, x_start_stop, y_start_stop, xy_window=xy_window)
+        searchWinList += searchWbin
+        searchWinExtL.append(searchWbin)
+
+    if not imgWrt is False:
+        tmpImg = np.copy(image)
+        for w in range(len(searchWinExtL)):
+            colorL = [0,0,0]
+            colorL[w] = 225
+            tmpImg = draw_boxes(tmpImg, searchWinExtL[w], color=tuple(colorL), thick=w+1)
+        mpimg.imsave('/tmp/boxOut.jpg', tmpImg)
+
     hot_windows = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
                                  spatial_size=spatial_size, hist_bins=hist_bins,
                                  orient=orient, pix_per_cell=pix_per_cell,
@@ -190,69 +202,31 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
     labels   = label(heatMap)
     finnImg  = draw_labeled_bboxes(np.copy(image), labels)
 
-    titles  = ('OrigBoxed', 'Heat Map', 'Car Positions',)[-saveFlev:]
-    pltImgs = (oBoxdImg, heatMap, finnImg)[-saveFlev:]
+    titles  = ('OrigBoxed', 'Heat Map', 'Labels', 'Car Positions',)[-saveFlev:]
+    pltImgs = (oBoxdImg, heatMap, labels[0], finnImg)[-saveFlev:]
     #pltImgs = (oBoxdImg, heatMap, (finnImg * 255).astype(np.int16))[-saveFlev:]
+
+    if not imgWrt is False:
+        for w in range(len(titles)):
+            cMap=None
+            if   titles[w][0] == 'H': cMap='hot'
+            elif titles[w][0] == 'L': cMap='gray'
+            mpimg.imsave(imgWrt+titles[w]+'.jpg', pltImgs[w], cmap=cMap)
+
     if dbg:
         print(titles)
         fig = plt.figure()
         for i in range(saveFlev):
             plt.subplot(100+(saveFlev+1)*10+i+1)
             plt.title(titles[i])
-            if titles[i][:4] != 'Heat': plt.imshow(pltImgs[i])
-            else: plt.imshow(pltImgs[i], cmap='hot')
+            if   titles[i][0] == 'H': plt.imshow(pltImgs[i], cmap='hot')
+            elif titles[i][0] == 'L': plt.imshow(pltImgs[i], cmap='gray')
+            else: plt.imshow(pltImgs[i])
         fig.tight_layout()
-        if oFnm != None: plt.savefig(oFnm, bbox_inches='tight')
-        if dbg: plt.show()
+        if    oFnm != None: plt.savefig(oFnm, bbox_inches='tight')
+        else: plt.savefig(imgWrt+'ALLout.png', bbox_inches='tight')
+    if dbg and imgWrt == None: plt.show()
     return (finnImg * 255).astype(np.int16) # least shows Video 
-
-def searchWindows(img, search_window, windows_list, clf, scaler, 
-                  batch_hog=True, source_color_space='RGB',
-                  target_color_space='YCrCb',
-                  spatial_size=(32, 32), hist_bins=32, 
-                  hist_range=(0, 256), orient=9, 
-                  pix_per_cell=8, cell_per_block=2, 
-                  hog_channel=[1], spatial_feat=True, 
-                  hist_feat=True, 
-                  hog_feat=True):
-    #Create an empty list to receive positive detection windows
-    on_windows = []
-    #Create an empty list to store all sliding windows taken from the img
-    window_imgs = []    
-    #Iterate over all windows in the list
-    for window in windows_list:
-        # Extract the test window from original image
-        window_imgs.append(img[window[0][1]:window[1][1], window[0][0]:window[1][0]])
-    # Extract all hog_features at once
-    if batch_hog:
-        hf_list = extract_hog_features_once(img, search_window, windows_list, 
-                              source_color_space=source_color_space, 
-                              target_color_space=target_color_space,
-                              orient=orient, pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
-                              hog_channel=hog_channel)     
-    else: hf_list = []
-    
-    # Extract features for that window using single_img_features()
-    features_list = extract_features(window_imgs, hog_feat_list=hf_list, 
-                                     source_color_space=source_color_space, 
-                                     target_color_space=target_color_space,
-                                     spatial_size=spatial_size, hist_bins=hist_bins, 
-                                     orient=orient, pix_per_cell=pix_per_cell, 
-                                     cell_per_block=cell_per_block, 
-                                     hog_channel=hog_channel, spatial_feat=spatial_feat, 
-                                     hist_feat=hist_feat,
-                                     hog_feat=hog_feat)
-   
-    # Return those windows with positive classification outcome    
-    for window, features in zip(windows_list, features_list):
-        # Scale extracted features to be fed to classifier
-        scaled_features = scaler.transform(np.array(features).reshape(1, -1))
-        # Predict using your classifier
-        prediction = clf.predict(scaled_features)
-        # If positive (prediction == 1) then save the window
-        if prediction == 1: on_windows.append(window)
-    # Return windows for positive detections
-    return on_windows
 
 def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBegEnd=None, setFps=12):
     if setBegEnd is None:
@@ -264,12 +238,18 @@ def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBegEnd=None, setFps=1
     outClip = inVclip.fl_image(processImg)
     outClip.write_videofile(outClipFnm, audio=False)
 
+def procss6Imgs():
+    for i in range(6)[:]:
+        vFrame = VideoFileClip('./project_video.mp4').get_frame(30.0+i*5)
+        x = processImg(vFrame, saveFlev=4, imgWrt='./output_images/'+str(i)+'_', dbg=True)
+    
 if __name__ == '__main__':
     if 0: createSVC(lim=0, pklIt=True)
-    #vFrame = VideoFileClip(inF).get_frame(38.0);    x=processImg(vFrame,dbg=True)
-    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF,outF,setFps=8,setBegEnd=None) # (17,45),
+    #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; \
+        #proccessVideo(inF,outF,setFps=8,setBegEnd=None) # (17,45),
     #inF = './test_video.mp4'; outF=outClipFnm='./outPut1.mp4'; proccessVideo(inF, outF)
     #Prb: 21 (no car) 34 (2cars)
-    bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
-    x=processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
+    #bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
+    #x=processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
     #x=processImg(bboxImg, saveFlev=1, dbg=True)
+    procss6Imgs()
