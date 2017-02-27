@@ -286,12 +286,11 @@ def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBegEnd=None, setFps=1
     outClip = inVclip.fl_image(processImg)
     outClip.write_videofile(outClipFnm, audio=False)
 
-#if __name__ == '__main__':
-if 1:
+if __name__ == '__main__':
     if 0: createSVC(lim=0, pklIt=True)
     #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4' #; proccessVideo(inF, outF)
     #vFrame = VideoFileClip(inF).get_frame(38.0);    x=processImg(vFrame,dbg=True)
-    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF, (17,45), 10)
+    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF, setFps=8, setBegEnd=None) # (17,45), 10)
     #x=markVehiclesOnFrame(vFrame, plot_heat_map=False, plot_bBox=True, watershed=True,batch_hog=True, dbg=True)
     #Prb: 21 (no car) 34 (2cars)
     #bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
