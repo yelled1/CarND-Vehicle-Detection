@@ -276,8 +276,13 @@ def searchWindows(img, search_window, windows_list, clf, scaler,
     # Return windows for positive detections
     return on_windows
 
-def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBeg=None, setEnd=None, setFps=None):
-    inVclip = VideoFileClip(inClipFnm).subclip(setBeg, setEnd).set_fps(setFps)
+def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBegEnd=None, setFps=12):
+    if setBegEnd is None:
+        print('default')
+        inVclip = VideoFileClip(inClipFnm).set_fps(setFps)
+    else:
+        print('BegEnd')
+        inVclip = VideoFileClip(inClipFnm).subclip(setBegEnd[0], setBegEnd[-1]).set_fps(setFps)
     outClip = inVclip.fl_image(processImg)
     outClip.write_videofile(outClipFnm, audio=False)
 
@@ -286,8 +291,7 @@ if 1:
     if 0: createSVC(lim=0, pklIt=True)
     #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4' #; proccessVideo(inF, outF)
     #vFrame = VideoFileClip(inF).get_frame(38.0);    x=processImg(vFrame,dbg=True)
-    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; 
-    proccessVideo(inF, outF, 32, 40, 10)
+    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF, (17,45), 10)
     #x=markVehiclesOnFrame(vFrame, plot_heat_map=False, plot_bBox=True, watershed=True,batch_hog=True, dbg=True)
     #Prb: 21 (no car) 34 (2cars)
     #bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
