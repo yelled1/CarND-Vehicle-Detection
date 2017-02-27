@@ -1,20 +1,18 @@
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
-import cv2
-import time, glob, pickle
+import cv2, time, glob, pickle
 from sklearn.svm import LinearSVC
-from sklearn.preprocessing import StandardScaler
 from skimage.feature import hog
-from lesson_functions import *
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from scipy.ndimage.measurements import label
 from moviepy.editor import VideoFileClip
 from config import *
+from lesson_functions import *
 
 def single_img_features(img, color_space='YCrCb', spatial_size=(32, 32),
-                        hist_bins=32, orient=9,
-                        pix_per_cell=8, cell_per_block=2, hog_channel=0,
+                        hist_bins=32, orient=9,pix_per_cell=8, cell_per_block=2, hog_channel=0,
                         spatial_feat=True, hist_feat=True, hog_feat=True, hogVis=False, dbg=False):
     #1) Define an empty list to receive features
     img_features, imgShapes = [], {}
@@ -162,7 +160,6 @@ def createSVC(lim=0, pklIt=False):
         with open('./svcModel.pkl', 'wb') as fp: pickle.dump(svc,fp)
         with open('./X_scaler.pkl', 'wb') as fw: pickle.dump(X_scaler, fw)
 
-
 def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
     if type(iFnm) == str: image  = mpimg.imread(iFnm)
     elif type(iFnm) == np.ndarray:      image = iFnm
@@ -171,14 +168,43 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
     imgCpy = np.copy(image)
     image  = image.astype(np.float32)/255 # conversion to 0~1 as trained on png
     heat   = np.zeros_like(image[:,:,0]).astype(np.float)
-    searchWindows = slide_window(image, x_start_stop=[None, None], y_start_stop = [475, None],
+    """
+    searchWinList = slide_window(image, x_start_stop=[None, None], y_start_stop = [475, None],
                                  xy_window=(96, 96), xy_overlap=(0.5, 0.5), dbg=dbg)
-    hot_windows   = search_windows(image, searchWindows, svc, X_scaler, color_space=color_space,
-                                 spatial_size=spatial_size, hist_bins=hist_bins,
-                                 orient=orient, pix_per_cell=pix_per_cell,
-                                 cell_per_block=cell_per_block,
-                                 hog_channel=hog_channel, spatial_feat=spatial_feat,
+    hot_windows   = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
+                                   spatial_size=spatial_size, hist_bins=hist_bins,
+                                   orient=orient, pix_per_cell=pix_per_cell,
+                                   cell_per_block=cell_per_block,
+                                   hog_channel=hog_channel, spatial_feat=spatial_feat,
                                    hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
+    """
+    hot_windows = []
+    searchWinList= []
+    for search_window in GVsearchWindows: # gVal: search windows (np.arrays(xmin,xMax, y
+        # Id win coord using Modified slide_window: relative to Image
+        x_start_stop = ((search_window[0][0] * image.shape[1]).round()).astype(int)
+        y_start_stop = ((search_window[0][1] * image.shape[0]).round()).astype(int)
+        xy_window    =  (search_window[1], search_window[1])
+        searchWinList += slide_window(image, x_start_stop, y_start_stop, xy_window=xy_window)
+        """
+        # Identify windows that are classified as cars 
+        hot_windows += searchWindows(image, search_window, slideWinS, svc, X_scaler, 
+                                     source_color_space=color_space, 
+                                     target_color_space=target_color_space,
+                                     spatial_size=spatial_size, hist_bins=hist_bins, 
+                                     orient=orient, pix_per_cell=pix_per_cell, 
+                                     cell_per_block=cell_per_block, 
+                                     hog_channel=hog_channel, spatial_feat=spatial_feat, 
+                                     hist_feat=hist_feat, 
+                                     hog_feat=hog_feat)
+        """
+    hot_windows   = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
+                                   spatial_size=spatial_size, hist_bins=hist_bins,
+                                   orient=orient, pix_per_cell=pix_per_cell,
+                                   cell_per_block=cell_per_block,
+                                   hog_channel=hog_channel, spatial_feat=spatial_feat,
+                                   hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
+
 
     oBoxdImg = draw_boxes(imgCpy, hot_windows, color=(0,0,255), thick=6)
     heatAdd  = add_heat(heat, hot_windows)
@@ -202,18 +228,71 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
         if dbg: plt.show()
     return (finnImg * 255).astype(np.int16) # least shows Video 
 
-def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4'):
-    inVclip = VideoFileClip(inClipFnm)
+def searchWindows(img, search_window, windows_list, clf, scaler, 
+                  batch_hog=True, source_color_space='RGB',
+                  target_color_space='YCrCb',
+                  spatial_size=(32, 32), hist_bins=32, 
+                  hist_range=(0, 256), orient=9, 
+                  pix_per_cell=8, cell_per_block=2, 
+                  hog_channel=[1], spatial_feat=True, 
+                  hist_feat=True, 
+                  hog_feat=True):
+    #Create an empty list to receive positive detection windows
+    on_windows = []
+    #Create an empty list to store all sliding windows taken from the img
+    window_imgs = []    
+    #Iterate over all windows in the list
+    for window in windows_list:
+        # Extract the test window from original image
+        window_imgs.append(img[window[0][1]:window[1][1], window[0][0]:window[1][0]])
+    # Extract all hog_features at once
+    if batch_hog:
+        hf_list = extract_hog_features_once(img, search_window, windows_list, 
+                              source_color_space=source_color_space, 
+                              target_color_space=target_color_space,
+                              orient=orient, pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
+                              hog_channel=hog_channel)     
+    else: hf_list = []
+    
+    # Extract features for that window using single_img_features()
+    features_list = extract_features(window_imgs, hog_feat_list=hf_list, 
+                                     source_color_space=source_color_space, 
+                                     target_color_space=target_color_space,
+                                     spatial_size=spatial_size, hist_bins=hist_bins, 
+                                     orient=orient, pix_per_cell=pix_per_cell, 
+                                     cell_per_block=cell_per_block, 
+                                     hog_channel=hog_channel, spatial_feat=spatial_feat, 
+                                     hist_feat=hist_feat,
+                                     hog_feat=hog_feat)
+   
+    # Return those windows with positive classification outcome    
+    for window, features in zip(windows_list, features_list):
+        # Scale extracted features to be fed to classifier
+        scaled_features = scaler.transform(np.array(features).reshape(1, -1))
+        # Predict using your classifier
+        prediction = clf.predict(scaled_features)
+        # If positive (prediction == 1) then save the window
+        if prediction == 1: on_windows.append(window)
+    # Return windows for positive detections
+    return on_windows
+
+def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBeg=None, setEnd=None, setFps=None):
+    inVclip = VideoFileClip(inClipFnm).subclip(setBeg, setEnd).set_fps(setFps)
     outClip = inVclip.fl_image(processImg)
     outClip.write_videofile(outClipFnm, audio=False)
 
-
-if __name__ == '__main__':
+#if __name__ == '__main__':
+if 1:
     if 0: createSVC(lim=0, pklIt=True)
-    bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
-    #x = processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
-    x = processImg(bboxImg, saveFlev=1, dbg=True)
-    vFrame = VideoFileClip('./test_video.mp4').get_frame(1.0); x = processImg(vFrame,  saveFlev=3, dbg=True)
+    #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4' #; proccessVideo(inF, outF)
+    #vFrame = VideoFileClip(inF).get_frame(38.0);    x=processImg(vFrame,dbg=True)
+    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; 
+    proccessVideo(inF, outF, 32, 40, 10)
+    #x=markVehiclesOnFrame(vFrame, plot_heat_map=False, plot_bBox=True, watershed=True,batch_hog=True, dbg=True)
+    #Prb: 21 (no car) 34 (2cars)
+    #bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
+    #x=processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
+    #x=processImg(bboxImg, saveFlev=1, dbg=True)
+    
     #inF = './test_video.mp4'; outF=outClipFnm='./outPut1.mp4'; proccessVideo(inF, outF)
-    #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF)
     #bboxImg.shape;    vFrame.shape; Out[17]: (720, 1280, 3)
