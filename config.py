@@ -21,14 +21,13 @@ hog_feat     = True # HOG features on or off
 with open('./svcModel.pkl', 'rb') as fr: svc = pickle.load(fr)
 with open('./X_scaler.pkl', 'rb') as rf: X_scaler = pickle.load(rf)
 
-num_frames_to_keep  = 10 # no. of frames to keep
-recent_hot_windows  = [] # list of hot windows identified on recent frames
-recent_bbox_windows = [] # list of bounding boxes around cars
+numOfFrames  = 10 # no. of frames to keep
+recentHeatWin = [] # list of hot windows identified     on recent frames
+recentBboxWin = [] # list of bounding boxes around cars on recent frames
 
 # Thresholds for heatmaps
-thresh_high = 10
-thresh_low  = 5
-base_size   = 64
+HeatThresh_high = 10
+Heatthresh_low  = 5
 
 # searchWidnows: Areas of interest to be searched. The elements are :
 #((xmin, xMax), (ymin, yMax)) 
@@ -37,7 +36,3 @@ base_size   = 64
 GVsearchWindows = [ (np.array([[0.0,1.0], [0.5, 1.0]]), 64), 
                   (np.array([[0.0,1.0], [0.5, 1.0]]), 96),
                   (np.array([[0.0,1.0], [0.5, 1.0]]), 128),]
-
-# dbg var: Frame Tracking while VideoFileClip Processing
-frame_no = 0       # dbg var
-max_heat_list = [] # dbg var

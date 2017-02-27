@@ -168,16 +168,7 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
     imgCpy = np.copy(image)
     image  = image.astype(np.float32)/255 # conversion to 0~1 as trained on png
     heat   = np.zeros_like(image[:,:,0]).astype(np.float)
-    """
-    searchWinList = slide_window(image, x_start_stop=[None, None], y_start_stop = [475, None],
-                                 xy_window=(96, 96), xy_overlap=(0.5, 0.5), dbg=dbg)
-    hot_windows   = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
-                                   spatial_size=spatial_size, hist_bins=hist_bins,
-                                   orient=orient, pix_per_cell=pix_per_cell,
-                                   cell_per_block=cell_per_block,
-                                   hog_channel=hog_channel, spatial_feat=spatial_feat,
-                                   hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
-    """
+
     hot_windows = []
     searchWinList= []
     for search_window in GVsearchWindows: # gVal: search windows (np.arrays(xmin,xMax, y
@@ -186,25 +177,12 @@ def processImg(iFnm, oFnm=None, saveFlev=1, dbg=False):
         y_start_stop = ((search_window[0][1] * image.shape[0]).round()).astype(int)
         xy_window    =  (search_window[1], search_window[1])
         searchWinList += slide_window(image, x_start_stop, y_start_stop, xy_window=xy_window)
-        """
-        # Identify windows that are classified as cars 
-        hot_windows += searchWindows(image, search_window, slideWinS, svc, X_scaler, 
-                                     source_color_space=color_space, 
-                                     target_color_space=target_color_space,
-                                     spatial_size=spatial_size, hist_bins=hist_bins, 
-                                     orient=orient, pix_per_cell=pix_per_cell, 
-                                     cell_per_block=cell_per_block, 
-                                     hog_channel=hog_channel, spatial_feat=spatial_feat, 
-                                     hist_feat=hist_feat, 
-                                     hog_feat=hog_feat)
-        """
-    hot_windows   = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
-                                   spatial_size=spatial_size, hist_bins=hist_bins,
-                                   orient=orient, pix_per_cell=pix_per_cell,
-                                   cell_per_block=cell_per_block,
-                                   hog_channel=hog_channel, spatial_feat=spatial_feat,
-                                   hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
-
+    hot_windows = search_windows(image, searchWinList, svc, X_scaler, color_space=color_space,
+                                 spatial_size=spatial_size, hist_bins=hist_bins,
+                                 orient=orient, pix_per_cell=pix_per_cell,
+                                 cell_per_block=cell_per_block,
+                                 hog_channel=hog_channel, spatial_feat=spatial_feat,
+                                 hist_feat=hist_feat, hog_feat=hog_feat, dbg=dbg)
 
     oBoxdImg = draw_boxes(imgCpy, hot_windows, color=(0,0,255), thick=6)
     heatAdd  = add_heat(heat, hot_windows)
@@ -288,14 +266,10 @@ def proccessVideo(inClipFnm, outClipFnm='./outPut.mp4', setBegEnd=None, setFps=1
 
 if __name__ == '__main__':
     if 0: createSVC(lim=0, pklIt=True)
-    #inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4' #; proccessVideo(inF, outF)
     #vFrame = VideoFileClip(inF).get_frame(38.0);    x=processImg(vFrame,dbg=True)
-    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF, outF, setFps=8, setBegEnd=None) # (17,45), 10)
-    #x=markVehiclesOnFrame(vFrame, plot_heat_map=False, plot_bBox=True, watershed=True,batch_hog=True, dbg=True)
-    #Prb: 21 (no car) 34 (2cars)
-    #bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
-    #x=processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
-    #x=processImg(bboxImg, saveFlev=1, dbg=True)
-    
+    inF = './project_video.mp4'; outF=outClipFnm='./PrjVideoOut.mp4'; proccessVideo(inF,outF,setFps=8,setBegEnd=None) # (17,45),
     #inF = './test_video.mp4'; outF=outClipFnm='./outPut1.mp4'; proccessVideo(inF, outF)
-    #bboxImg.shape;    vFrame.shape; Out[17]: (720, 1280, 3)
+    #Prb: 21 (no car) 34 (2cars)
+    bboxImg = mpimg.imread('./test_images/bbox-example-image.jpg'); oFnm='./output_images/orig_1stAsIs.jpg'
+    x=processImg(bboxImg, oFnm=oFnm, saveFlev=3, dbg=True)
+    #x=processImg(bboxImg, saveFlev=1, dbg=True)
